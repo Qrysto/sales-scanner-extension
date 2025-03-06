@@ -1,0 +1,19 @@
+{
+  "name": "ANA Sales Scanner",
+  "version": "1.0",
+  "manifest_version": 3,
+  "icons": {
+    "16": "assets/ANA-logo-lite-16.png",
+    "32": "assets/ANA-logo-lite-32.png",
+    "48": "assets/ANA-logo-lite-48.png",
+    "128": "assets/ANA-logo-lite-128.png"
+  },
+  "content_scripts": [
+    {
+      "js": ["build/content.js"],
+      "matches": ["https://shopee.vn/search*"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    }
+  ]
+}
