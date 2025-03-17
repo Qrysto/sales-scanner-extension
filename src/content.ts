@@ -60,22 +60,36 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
           : input.url;
       if (url.startsWith('https://shopee.vn/api/v4/search/search_items')) {
         const data: ShopeeSearchResult = await res.json();
-        const items = filterItems(data.items);
+        const items = data.items;
         if (!items?.length) {
           console.error('[ANA] No items found. items:', items, 'data:', data);
           return resClone;
         }
 
-        const intervalId = setInterval(() => {
+        const scanDom = () => {
           const searchResultEl = document.querySelector(
             '.shopee-search-item-result__items'
           );
-
-          if (searchResultEl) {
-            clearInterval(intervalId);
-            highlightItems(searchResultEl, items);
+          if (!searchResultEl) {
+            setTimeout(scanDom, 500);
+            return;
           }
-        }, 100);
+
+          const itemEls = searchResultEl.querySelectorAll(
+            '.shopee-search-item-result__item'
+          );
+          // Check whether lazy loading is done
+          for (const itemEl of itemEls) {
+            const aEl = itemEl.querySelector('a');
+            if (!aEl) {
+              setTimeout(scanDom, 500);
+              return;
+            }
+          }
+
+          highlightItems(searchResultEl, items);
+        };
+        scanDom(); // first scan
       }
     } catch (err) {
       console.log('Error fetch', err);
@@ -85,64 +99,78 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
   };
 })();
 
-function filterItems(items: ShopeeItem[]) {
+const isItemMatched = (() => {
   const urlParams = new URLSearchParams(window.location.search);
   const rawKeyword = urlParams.get('keyword');
-  if (!rawKeyword) return null;
-  const keyword = decodeURIComponent(rawKeyword).toLowerCase();
-  if (!keyword) return null;
+  const keyword = rawKeyword && decodeURIComponent(rawKeyword).toLowerCase();
 
-  return items.filter((item) =>
-    item.item_basic.name.toLowerCase().includes(keyword)
-  );
-}
+  return (item: ShopeeItem) =>
+    !!keyword && item.item_basic.name.toLowerCase().includes(keyword);
+})();
 
 function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
   const itemEls = searchResultEl.querySelectorAll(
     '.shopee-search-item-result__item'
   );
+
   for (const itemEl of itemEls) {
+    // Find item object
     const findSimilarEl = itemEl.querySelector(
       'a[href^="/find_similar_products"]'
     );
     const href = findSimilarEl?.getAttribute('href');
-    if (!href) continue;
+    if (!href) {
+      console.log('[ANA] href not found. itemEl:', itemEl);
+      continue;
+    }
     const qIndex = href.indexOf('?');
     const query = href.substring(qIndex + 1);
     const params = new URLSearchParams(query);
     const id = params.get('itemid');
-    if (!id) continue;
-    const item = items.find((item) => String(item.itemid) === id);
+    const item = id && items.find((item) => String(item.itemid) === id);
+    if (!item) {
+      console.error('[ANA] item not found. qIndex:', qIndex, 'id:', id);
+      continue;
+    }
+    const matched = isItemMatched(item);
 
+    // Manipulate item UI
+    itemEl.setAttribute('style', 'margin-bottom: 60px');
     const bgEl = itemEl.querySelector('a.contents > div');
-    if (!bgEl) continue;
-
-    const addedEl = document.createElement('div');
-    addedEl.setAttribute(
-      'style',
-      'padding: 5px 8px; display: flex; justify-content: space-between'
-    );
-    bgEl.appendChild(addedEl);
-
-    if (item) {
+    if (!bgEl) {
+      console.error('[ANA] bgEl not found');
+      continue;
+    }
+    if (matched) {
       bgEl.setAttribute(
         'style',
         'background-color:rgb(19, 95, 171) !important;'
       );
-
-      const btnEl = document.createElement('button');
-      btnEl.innerText = 'Remove';
-      addedEl.appendChild(btnEl);
-
-      const soldCountEl = document.createElement('div');
-      const { sold, historical_sold, global_sold_count } = item.item_basic;
-      soldCountEl.innerText = `${sold} | ${historical_sold} | ${global_sold_count}`;
-      addedEl.appendChild(soldCountEl);
-    } else {
-      const btnEl = document.createElement('button');
-      btnEl.innerText = 'Add';
-      addedEl.appendChild(btnEl);
     }
+
+    const addedEl = document.createElement('div');
+    addedEl.setAttribute(
+      'style',
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px'
+    );
+    itemEl.prepend(addedEl);
+
+    const btnEl = document.createElement('button');
+    if (matched) {
+      btnEl.innerText = 'Remove';
+    } else {
+      btnEl.innerText = 'Add';
+    }
+    btnEl.setAttribute(
+      'style',
+      'padding: 5px 8px; border-radius: 2px; border: 1px solid #bbb'
+    );
+    addedEl.appendChild(btnEl);
+
+    const soldCountEl = document.createElement('div');
+    const { sold, historical_sold, global_sold_count } = item.item_basic;
+    soldCountEl.innerText = `${global_sold_count}`;
+    addedEl.appendChild(soldCountEl);
   }
 }
 
