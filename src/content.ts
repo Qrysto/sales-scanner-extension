@@ -88,7 +88,7 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
           }
 
           addTableStyling();
-          highlightItems(searchResultEl, items);
+          scanItemsDOM(searchResultEl, items);
         };
         scanDom(); // first scan
       }
@@ -109,11 +109,11 @@ const isItemMatched = (() => {
     !!keyword && item.item_basic.name.toLowerCase().includes(keyword);
 })();
 
-function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
+function scanItemsDOM(searchResultEl: Element, items: ShopeeItem[]) {
   const itemEls = searchResultEl.querySelectorAll(
     '.shopee-search-item-result__item'
   );
-  const itemDescs: ItemDescriptor[] = [];
+  const includedItems: ItemDescriptor[] = [];
 
   for (const itemEl of itemEls) {
     // Find item object
@@ -136,7 +136,20 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
     }
     const matched = isItemMatched(item);
 
-    // Manipulate item UI
+    // Create item descriptor
+    const linkEl = itemEl.querySelector('a.contents');
+    const url = `https://shopee.vn${linkEl?.getAttribute('href') || ''}`;
+    const imageUrl = `https://down-vn.img.susercontent.com/file/${item.item_basic.image}_tn.webp`;
+    const itemDesc: ItemDescriptor = {
+      item,
+      url,
+      imageUrl,
+    };
+    if (matched) {
+      includedItems.push(itemDesc);
+    }
+
+    // Find background element
     itemEl.setAttribute('style', 'margin-bottom: 60px');
     const bgEl = itemEl.querySelector('a.contents > div');
     if (!bgEl) {
@@ -150,6 +163,46 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
       );
     }
 
+    // Define functions
+    const setBtnAsRemove = () => {
+      btnEl.innerHTML = 'Remove';
+      btnEl.addEventListener('click', removeItem);
+      btnEl.removeEventListener('click', addItem);
+    };
+    const setBtnAsAdd = () => {
+      btnEl.innerHTML = 'Add';
+      btnEl.addEventListener('click', addItem);
+      btnEl.removeEventListener('click', removeItem);
+    };
+    const addItem = () => {
+      bgEl.setAttribute(
+        'style',
+        'background-color:rgb(19, 95, 171) !important;'
+      );
+      setBtnAsRemove();
+      includedItems.push(itemDesc);
+      displayTable(includedItems);
+    };
+    const removeItem = () => {
+      bgEl.removeAttribute('style');
+      setBtnAsAdd();
+      const index = includedItems.findIndex(
+        ({ item: { itemid } }) => itemid === item.itemid
+      );
+      if (index > -1) {
+        includedItems.splice(index, 1);
+        displayTable(includedItems);
+      } else {
+        console.error(
+          '[ANA] Cannot find item. item:',
+          item,
+          'includedItems:',
+          includedItems
+        );
+      }
+    };
+
+    // Manipulate item UI
     const addedEl = document.createElement('div');
     addedEl.setAttribute(
       'style',
@@ -159,9 +212,9 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
 
     const btnEl = document.createElement('button');
     if (matched) {
-      btnEl.innerText = 'Remove';
+      setBtnAsRemove();
     } else {
-      btnEl.innerText = 'Add';
+      setBtnAsAdd();
     }
     btnEl.setAttribute(
       'style',
@@ -173,21 +226,10 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
     const { sold, historical_sold, global_sold_count } = item.item_basic;
     soldCountEl.innerText = `${global_sold_count}`;
     addedEl.appendChild(soldCountEl);
-
-    // Add item descriptor
-    if (matched) {
-      const linkEl = itemEl.querySelector('a.contents');
-      const url = linkEl?.getAttribute('href') || '';
-      const imageUrl = `https://down-vn.img.susercontent.com/file/${item.item_basic.image}_tn.webp`;
-      itemDescs.push({
-        item,
-        url,
-        imageUrl,
-      });
-    }
   }
 
-  displayTable(itemDescs);
+  // Display result table after all items are scanned
+  displayTable(includedItems);
 }
 
 function displayTable(itemDescs: ItemDescriptor[]) {
@@ -242,7 +284,7 @@ function displayTable(itemDescs: ItemDescriptor[]) {
   );
   const totalEl = document.createElement('div');
   tableDivEl.appendChild(totalEl);
-  totalEl.innerHTML = `Tổng doanh số: <strong>${total}</strong>`;
+  totalEl.innerHTML = `Số sản phẩm: <strong>${itemDescs.length}</strong>, Tổng doanh số: <strong>${total}</strong>`;
   totalEl.setAttribute('style', 'text-align: right; margin: 20px 0;');
 }
 
