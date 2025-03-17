@@ -87,6 +87,7 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
             }
           }
 
+          addTableStyling();
           highlightItems(searchResultEl, items);
         };
         scanDom(); // first scan
@@ -112,6 +113,7 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
   const itemEls = searchResultEl.querySelectorAll(
     '.shopee-search-item-result__item'
   );
+  const itemDescs: ItemDescriptor[] = [];
 
   for (const itemEl of itemEls) {
     // Find item object
@@ -171,10 +173,101 @@ function highlightItems(searchResultEl: Element, items: ShopeeItem[]) {
     const { sold, historical_sold, global_sold_count } = item.item_basic;
     soldCountEl.innerText = `${global_sold_count}`;
     addedEl.appendChild(soldCountEl);
+
+    // Add item descriptor
+    if (matched) {
+      const linkEl = itemEl.querySelector('a.contents');
+      const url = linkEl?.getAttribute('href') || '';
+      const imageUrl = `https://down-vn.img.susercontent.com/file/${item.item_basic.image}_tn.webp`;
+      itemDescs.push({
+        item,
+        url,
+        imageUrl,
+      });
+    }
   }
+
+  displayTable(itemDescs);
 }
 
-function addChild(parentEl: Element, childHtml: string) {}
+function displayTable(itemDescs: ItemDescriptor[]) {
+  let tableDivEl = document.querySelector('#ana-result-table');
+  if (tableDivEl) {
+    tableDivEl.innerHTML = '';
+  } else {
+    const footerEl = document.querySelector('footer');
+    const parent = footerEl?.parentElement;
+    tableDivEl = document.createElement('div');
+    tableDivEl.id = 'ana-result-table';
+    parent?.insertBefore(tableDivEl, footerEl);
+  }
+
+  const tableEl = document.createElement('table');
+  tableDivEl.appendChild(tableEl);
+  tableEl.innerHTML = `
+      <thead>
+        <tr>
+          <th>Ảnh</th>
+          <th>Tên sản phảm</th>
+          <th>Người bán</th>
+          <th>Nguồn</th>
+          <th>Doanh số</th>
+        </tr>
+      </thead>
+    `;
+
+  const tbodyEl = document.createElement('tbody');
+  tableEl.appendChild(tbodyEl);
+
+  for (const desc of itemDescs) {
+    const {
+      item: { item_basic },
+      url,
+      imageUrl,
+    } = desc;
+    const trEl = document.createElement('tr');
+    tbodyEl.appendChild(trEl);
+    trEl.innerHTML = `
+        <td><img src="${imageUrl}" width="80" height="80" alt="${item_basic.name}"></td>
+        <td>${item_basic.name}</td>
+        <td>${item_basic.shop_name}</td>
+        <td><a href="${url}">Shopee</a></td>
+        <td>${item_basic.global_sold_count}</td>
+      `;
+  }
+
+  const total = itemDescs.reduce(
+    (total, desc) => total + (desc.item.item_basic.global_sold_count || 0),
+    0
+  );
+  const totalEl = document.createElement('div');
+  tableDivEl.appendChild(totalEl);
+  totalEl.innerHTML = `Tổng doanh số: <strong>${total}</strong>`;
+  totalEl.setAttribute('style', 'text-align: right; margin: 20px 0;');
+}
+
+function addTableStyling() {
+  const styleEl = document.createElement('style');
+  styleEl.innerHTML = `
+    #ana-result-table {
+      width: 90%;
+      max-with: 1500px;
+      margin: 30px auto;
+    }
+    #ana-result-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #ana-result-table th, #ana-result-table td {
+      border: 1px solid #ddd;
+      padding: 5px 8px;
+    }
+    #ana-result-table th {
+      background-color: #f2f2f2;
+    }
+  `;
+  document.head.appendChild(styleEl);
+}
 
 interface TierVariation {
   name: string;
@@ -302,4 +395,10 @@ interface ShopeeItem {
 
 interface ShopeeSearchResult {
   items: ShopeeItem[];
+}
+
+interface ItemDescriptor {
+  item: ShopeeItem;
+  url: string;
+  imageUrl: string;
 }
