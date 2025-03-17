@@ -4,6 +4,7 @@
   "description": "",
   "main": "build/content.js",
   "scripts": {
+    "dev": "babel src -d build --extensions .ts,.js,.tsx,.jsx --watch",
     "build": "babel src -d build --extensions .ts,.js,.tsx,.jsx"
   },
   "author": "",
