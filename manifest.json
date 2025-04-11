@@ -11,7 +11,10 @@
   "content_scripts": [
     {
       "js": ["build/content.js"],
-      "matches": ["https://shopee.vn/search*"],
+      "matches": [
+        "https://shopee.vn/search*",
+        "https://www.lazada.vn/catalog*"
+      ],
       "world": "MAIN",
       "run_at": "document_start"
     }
