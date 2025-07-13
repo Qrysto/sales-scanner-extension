@@ -1,4 +1,4 @@
-console.log('[ANA] sales-scanner EXTENSION STARTS');
+console.log("[ANA] sales-scanner EXTENSION STARTS");
 
 /**
  * Overwrites fetch function to get Shopee search results
@@ -10,19 +10,19 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
 
     try {
       const url =
-        typeof input === 'string'
+        typeof input === "string"
           ? input
-          : 'hostname' in input
+          : "hostname" in input
           ? input.hostname
           : input.url;
-      if (url.startsWith('https://shopee.vn/api/v4/search/search_items')) {
+      if (url.startsWith("https://shopee.vn/api/v4/search/search_items")) {
         // Need to clone response, or calling res.json() again will throw this error:
         // `Failed to execute 'json' on 'Response': body stream already read`
         const data: any = await res.clone().json();
         scanShopee(data);
       }
     } catch (err) {
-      console.log('Error fetch', err);
+      console.log("Error fetch", err);
     } finally {
       return res;
     }
@@ -35,8 +35,8 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
   const sendOrig = XHR.send;
 
   XHR.open = function (method, url) {
-    const thisUrl = typeof url === 'string' ? url : url.hostname;
-    if (thisUrl.startsWith('/catalog') && method.toUpperCase() === 'GET') {
+    const thisUrl = typeof url === "string" ? url : url.hostname;
+    if (thisUrl.startsWith("/catalog") && method.toUpperCase() === "GET") {
       (this as any)._isLazSearchResult = true;
     }
 
@@ -44,14 +44,14 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
   };
 
   XHR.send = function () {
-    this.addEventListener('load', function () {
+    this.addEventListener("load", function () {
       if ((this as any)._isLazSearchResult) {
         try {
           const json = this.responseText;
           const data = JSON.parse(json);
           scanLazada(data);
         } catch (err) {
-          console.log('[ANA] Error parsing search response');
+          console.log("[ANA] Error parsing search response");
           console.log(err);
         }
       }
@@ -64,24 +64,24 @@ console.log('[ANA] sales-scanner EXTENSION STARTS');
 function displayTable(itemDescs: ItemDescriptor[]) {
   const footerEl =
     // Shopee
-    document.querySelector('footer') ||
+    document.querySelector("footer") ||
     // Lazada
-    document.querySelector('.new-desktop-footer');
+    document.querySelector(".new-desktop-footer");
   if (!footerEl) {
-    console.error('[ANA] footerEl not found');
+    console.error("[ANA] footerEl not found");
     return;
   }
-  let tableDivEl = document.querySelector('#ana-result-table');
+  let tableDivEl = document.querySelector("#ana-result-table");
   if (tableDivEl) {
-    tableDivEl.innerHTML = '';
+    tableDivEl.innerHTML = "";
   } else {
     const parent = footerEl?.parentElement;
-    tableDivEl = document.createElement('div');
-    tableDivEl.id = 'ana-result-table';
+    tableDivEl = document.createElement("div");
+    tableDivEl.id = "ana-result-table";
     parent?.insertBefore(tableDivEl, footerEl);
   }
 
-  const tableEl = document.createElement('table');
+  const tableEl = document.createElement("table");
   tableDivEl.appendChild(tableEl);
   tableEl.innerHTML = `
       <thead>
@@ -95,24 +95,24 @@ function displayTable(itemDescs: ItemDescriptor[]) {
       </thead>
     `;
 
-  const tbodyEl = document.createElement('tbody');
+  const tbodyEl = document.createElement("tbody");
   tableEl.appendChild(tbodyEl);
 
   let total = 0;
   for (const desc of itemDescs) {
     const { item, url, imageUrl, source } = desc;
-    const isShopee = source === 'Shopee';
+    const isShopee = source === "Shopee";
     const name = isShopee ? item.item_basic.name : item.name;
     const shopName = isShopee ? item.item_basic.shop_name : item.sellerName;
     const sold = isShopee
-      ? item.item_basic.global_sold_count
+      ? item.item_basic.historical_sold
       : displayLazadaShowCount(item.itemSoldCntShow);
     const soldNumber = isShopee
-      ? item.item_basic.global_sold_count
+      ? item.item_basic.historical_sold
       : parseInt(item.itemSoldCntShow);
     total += soldNumber || 0;
 
-    const trEl = document.createElement('tr');
+    const trEl = document.createElement("tr");
     tbodyEl.appendChild(trEl);
     trEl.innerHTML = `
         <td><img src="${imageUrl}" width="80" height="80" alt="${name}"></td>
@@ -123,14 +123,14 @@ function displayTable(itemDescs: ItemDescriptor[]) {
       `;
   }
 
-  const totalEl = document.createElement('div');
+  const totalEl = document.createElement("div");
   tableDivEl.appendChild(totalEl);
   totalEl.innerHTML = `Số sản phẩm: <strong>${itemDescs.length}</strong>, Tổng doanh số: <strong>${total}</strong>`;
-  totalEl.setAttribute('style', 'text-align: right; margin: 20px 0;');
+  totalEl.setAttribute("style", "text-align: right; margin: 20px 0;");
 }
 
 function addTableStyling() {
-  const styleEl = document.createElement('style');
+  const styleEl = document.createElement("style");
   styleEl.innerHTML = `
     #ana-result-table {
       width: 90%;
@@ -154,7 +154,7 @@ function addTableStyling() {
 
 function displayLazadaShowCount(str: string) {
   const sold = parseInt(str);
-  return Number.isNaN(sold) ? '' : String(sold);
+  return Number.isNaN(sold) ? "" : String(sold);
 }
 
 /**
@@ -165,7 +165,7 @@ function displayLazadaShowCount(str: string) {
 function scanShopee(data: ShopeeSearchResult) {
   const isItemMatched = (() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const rawKeyword = urlParams.get('keyword');
+    const rawKeyword = urlParams.get("keyword");
     const keyword = rawKeyword && decodeURIComponent(rawKeyword).toLowerCase();
 
     return (item: ShopeeItem) =>
@@ -174,7 +174,7 @@ function scanShopee(data: ShopeeSearchResult) {
 
   function scanItemsDOM(searchResultEl: Element, items: ShopeeItem[]) {
     const itemEls = searchResultEl.querySelectorAll(
-      '.shopee-search-item-result__item'
+      ".shopee-search-item-result__item"
     );
     const includedItems: ShopeeItemDescriptor[] = [];
 
@@ -183,28 +183,28 @@ function scanShopee(data: ShopeeSearchResult) {
       const findSimilarEl = itemEl.querySelector(
         'a[href^="/find_similar_products"]'
       );
-      const href = findSimilarEl?.getAttribute('href');
+      const href = findSimilarEl?.getAttribute("href");
       if (!href) {
-        console.log('[ANA] href not found. itemEl:', itemEl);
+        console.log("[ANA] href not found. itemEl:", itemEl);
         continue;
       }
-      const qIndex = href.indexOf('?');
+      const qIndex = href.indexOf("?");
       const query = href.substring(qIndex + 1);
       const params = new URLSearchParams(query);
-      const id = params.get('itemid');
+      const id = params.get("itemid");
       const item = id && items.find((item) => String(item.itemid) === id);
       if (!item) {
-        console.error('[ANA] item not found. qIndex:', qIndex, 'id:', id);
+        console.error("[ANA] item not found. qIndex:", qIndex, "id:", id);
         continue;
       }
       const matched = isItemMatched(item);
 
       // Create item descriptor
-      const linkEl = itemEl.querySelector('a.contents');
-      const url = `https://shopee.vn${linkEl?.getAttribute('href') || ''}`;
+      const linkEl = itemEl.querySelector("a.contents");
+      const url = `https://shopee.vn${linkEl?.getAttribute("href") || ""}`;
       const imageUrl = `https://down-vn.img.susercontent.com/file/${item.item_basic.image}_tn.webp`;
       const itemDesc: ShopeeItemDescriptor = {
-        source: 'Shopee',
+        source: "Shopee",
         item,
         url,
         imageUrl,
@@ -214,41 +214,41 @@ function scanShopee(data: ShopeeSearchResult) {
       }
 
       // Find background element
-      itemEl.setAttribute('style', 'margin-bottom: 60px');
-      const bgEl = itemEl.querySelector('a.contents > div');
+      itemEl.setAttribute("style", "margin-bottom: 60px");
+      const bgEl = itemEl.querySelector("a.contents > div");
       if (!bgEl) {
-        console.error('[ANA] bgEl not found');
+        console.error("[ANA] bgEl not found");
         continue;
       }
       if (matched) {
         bgEl.setAttribute(
-          'style',
-          'background-color:rgb(19, 95, 171) !important;'
+          "style",
+          "background-color:rgb(19, 95, 171) !important;"
         );
       }
 
       // Define functions
       const setBtnAsRemove = () => {
-        btnEl.innerHTML = 'Remove';
-        btnEl.addEventListener('click', removeItem);
-        btnEl.removeEventListener('click', addItem);
+        btnEl.innerHTML = "Remove";
+        btnEl.addEventListener("click", removeItem);
+        btnEl.removeEventListener("click", addItem);
       };
       const setBtnAsAdd = () => {
-        btnEl.innerHTML = 'Add';
-        btnEl.addEventListener('click', addItem);
-        btnEl.removeEventListener('click', removeItem);
+        btnEl.innerHTML = "Add";
+        btnEl.addEventListener("click", addItem);
+        btnEl.removeEventListener("click", removeItem);
       };
       const addItem = () => {
         bgEl.setAttribute(
-          'style',
-          'background-color:rgb(19, 95, 171) !important;'
+          "style",
+          "background-color:rgb(19, 95, 171) !important;"
         );
         setBtnAsRemove();
         includedItems.push(itemDesc);
         displayTable(includedItems);
       };
       const removeItem = () => {
-        bgEl.removeAttribute('style');
+        bgEl.removeAttribute("style");
         setBtnAsAdd();
         const index = includedItems.findIndex(
           ({ item: { itemid } }) => itemid === item.itemid
@@ -258,37 +258,37 @@ function scanShopee(data: ShopeeSearchResult) {
           displayTable(includedItems);
         } else {
           console.error(
-            '[ANA] Cannot find item. item:',
+            "[ANA] Cannot find item. item:",
             item,
-            'includedItems:',
+            "includedItems:",
             includedItems
           );
         }
       };
 
       // Manipulate item UI
-      const addedEl = document.createElement('div');
+      const addedEl = document.createElement("div");
       addedEl.setAttribute(
-        'style',
-        'display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px'
+        "style",
+        "display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px"
       );
       itemEl.prepend(addedEl);
 
-      const btnEl = document.createElement('button');
+      const btnEl = document.createElement("button");
       if (matched) {
         setBtnAsRemove();
       } else {
         setBtnAsAdd();
       }
       btnEl.setAttribute(
-        'style',
-        'padding: 5px 8px; border-radius: 2px; border: 1px solid #bbb'
+        "style",
+        "padding: 5px 8px; border-radius: 2px; border: 1px solid #bbb"
       );
       addedEl.appendChild(btnEl);
 
-      const soldCountEl = document.createElement('div');
+      const soldCountEl = document.createElement("div");
       const { sold, historical_sold, global_sold_count } = item.item_basic;
-      soldCountEl.innerText = `${global_sold_count}`;
+      soldCountEl.innerText = `${historical_sold}`;
       addedEl.appendChild(soldCountEl);
     }
 
@@ -301,13 +301,13 @@ function scanShopee(data: ShopeeSearchResult) {
    */
   const items = data.items;
   if (!items?.length) {
-    console.error('[ANA] No items found. items:', items, 'data:', data);
+    console.error("[ANA] No items found. items:", items, "data:", data);
     return;
   }
 
   const scanDom = () => {
     const searchResultEl = document.querySelector(
-      '.shopee-search-item-result__items'
+      ".shopee-search-item-result__items"
     );
     if (!searchResultEl) {
       setTimeout(scanDom, 500);
@@ -315,11 +315,11 @@ function scanShopee(data: ShopeeSearchResult) {
     }
 
     const itemEls = searchResultEl.querySelectorAll(
-      '.shopee-search-item-result__item'
+      ".shopee-search-item-result__item"
     );
     // Check whether lazy loading is done
     for (const itemEl of itemEls) {
-      const aEl = itemEl.querySelector('a');
+      const aEl = itemEl.querySelector("a");
       if (!aEl) {
         setTimeout(scanDom, 500);
         return;
@@ -340,7 +340,7 @@ function scanShopee(data: ShopeeSearchResult) {
 function scanLazada(data: LazadaSearchResult) {
   const isItemMatched = (() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const rawKeyword = urlParams.get('q');
+    const rawKeyword = urlParams.get("q");
     const keyword = rawKeyword && decodeURIComponent(rawKeyword).toLowerCase();
     return (item: LazadaProduct) =>
       !!keyword && item.name.toLowerCase().includes(keyword);
@@ -354,22 +354,22 @@ function scanLazada(data: LazadaSearchResult) {
 
     for (const itemEl of itemEls) {
       // Find item object
-      const id = itemEl.getAttribute('data-item-id');
+      const id = itemEl.getAttribute("data-item-id");
       const item = id && items.find((item) => String(item.itemId) === id);
       if (!item) {
-        console.error('[ANA] item not found. id:', id);
+        console.error("[ANA] item not found. id:", id);
         continue;
       }
 
       const matched = isItemMatched(item);
 
       // Create item descriptor
-      const url = item.itemUrl?.startsWith('//')
+      const url = item.itemUrl?.startsWith("//")
         ? `https:${item.itemUrl}`
-        : item.itemUrl || '';
+        : item.itemUrl || "";
       const imageUrl = item.image;
       const itemDesc: LazadaItemDescriptor = {
-        source: 'Lazada',
+        source: "Lazada",
         item,
         url,
         imageUrl,
@@ -379,41 +379,41 @@ function scanLazada(data: LazadaSearchResult) {
       }
 
       // Find background element
-      itemEl.setAttribute('style', 'margin-bottom: 60px');
+      itemEl.setAttribute("style", "margin-bottom: 60px");
       const bgEl = itemEl.firstElementChild?.firstElementChild;
       if (!bgEl) {
-        console.error('[ANA] bgEl not found');
+        console.error("[ANA] bgEl not found");
         continue;
       }
       if (matched) {
         bgEl.setAttribute(
-          'style',
-          'background-color:rgb(19, 95, 171) !important;'
+          "style",
+          "background-color:rgb(19, 95, 171) !important;"
         );
       }
 
       // Define functions
       const setBtnAsRemove = () => {
-        btnEl.innerHTML = 'Remove';
-        btnEl.addEventListener('click', removeItem);
-        btnEl.removeEventListener('click', addItem);
+        btnEl.innerHTML = "Remove";
+        btnEl.addEventListener("click", removeItem);
+        btnEl.removeEventListener("click", addItem);
       };
       const setBtnAsAdd = () => {
-        btnEl.innerHTML = 'Add';
-        btnEl.addEventListener('click', addItem);
-        btnEl.removeEventListener('click', removeItem);
+        btnEl.innerHTML = "Add";
+        btnEl.addEventListener("click", addItem);
+        btnEl.removeEventListener("click", removeItem);
       };
       const addItem = () => {
         bgEl.setAttribute(
-          'style',
-          'background-color:rgb(19, 95, 171) !important;'
+          "style",
+          "background-color:rgb(19, 95, 171) !important;"
         );
         setBtnAsRemove();
         includedItems.push(itemDesc);
         displayTable(includedItems);
       };
       const removeItem = () => {
-        bgEl.removeAttribute('style');
+        bgEl.removeAttribute("style");
         setBtnAsAdd();
         const index = includedItems.findIndex(
           ({ item: { itemId } }) => itemId === item.itemId
@@ -423,35 +423,35 @@ function scanLazada(data: LazadaSearchResult) {
           displayTable(includedItems);
         } else {
           console.error(
-            '[ANA] Cannot find item. item:',
+            "[ANA] Cannot find item. item:",
             item,
-            'includedItems:',
+            "includedItems:",
             includedItems
           );
         }
       };
 
       // Manipulate item UI
-      const addedEl = document.createElement('div');
+      const addedEl = document.createElement("div");
       addedEl.setAttribute(
-        'style',
-        'display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 8px'
+        "style",
+        "display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 0 8px"
       );
       itemEl.prepend(addedEl);
 
-      const btnEl = document.createElement('button');
+      const btnEl = document.createElement("button");
       if (matched) {
         setBtnAsRemove();
       } else {
         setBtnAsAdd();
       }
       btnEl.setAttribute(
-        'style',
-        'padding: 5px 8px; border-radius: 2px; border: 1px solid #bbb'
+        "style",
+        "padding: 5px 8px; border-radius: 2px; border: 1px solid #bbb"
       );
       addedEl.appendChild(btnEl);
 
-      const soldCountEl = document.createElement('div');
+      const soldCountEl = document.createElement("div");
       soldCountEl.innerText = displayLazadaShowCount(item.itemSoldCntShow);
       addedEl.appendChild(soldCountEl);
     }
@@ -465,7 +465,7 @@ function scanLazada(data: LazadaSearchResult) {
    */
   const items = data.mods.listItems;
   if (!items?.length) {
-    console.error('[ANA] No items found. items:', items, 'data:', data);
+    console.error("[ANA] No items found. items:", items, "data:", data);
     return;
   }
 
@@ -483,7 +483,7 @@ function scanLazada(data: LazadaSearchResult) {
     );
     // Check whether lazy loading is done
     for (const itemEl of itemEls) {
-      const aEl = itemEl.querySelector('a');
+      const aEl = itemEl.querySelector("a");
       if (!aEl) {
         setTimeout(scanDom, 500);
         return;
@@ -633,7 +633,7 @@ interface ShopeeItemDescriptor {
   item: ShopeeItem;
   url: string;
   imageUrl: string;
-  source: 'Shopee';
+  source: "Shopee";
 }
 
 /**
@@ -644,7 +644,7 @@ interface ShopeeItemDescriptor {
 interface LazadaIcon {
   domClass: string;
   text?: string;
-  type: 'text' | 'img';
+  type: "text" | "img";
   group: string;
   showType: string;
 }
@@ -710,7 +710,7 @@ interface LazadaItemDescriptor {
   item: LazadaProduct;
   url: string;
   imageUrl: string;
-  source: 'Lazada';
+  source: "Lazada";
 }
 
 /**
