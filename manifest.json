@@ -1,6 +1,6 @@
 {
   "name": "ANA Sales Scanner",
-  "version": "1.1",
+  "version": "1.1.1",
   "manifest_version": 3,
   "icons": {
     "16": "assets/ANA-logo-lite-16.png",

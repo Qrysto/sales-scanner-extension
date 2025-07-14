@@ -1,6 +1,6 @@
 {
   "name": "ana-sales-scanner-extension",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "",
   "main": "build/content.js",
   "scripts": {
